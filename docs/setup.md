@@ -47,4 +47,4 @@ cd rust_2023_homework
 
 ### Step 4 - First solution
 
-Read the document about [solving and submitting problems](solving.md). Solve the [add](problems/tutorial/add) problem.
+Read the document about [solving and submitting problems](solving.md). Solve the [add](https://github.com/DBarinovv/rust_2023_homework/tree/master/problems/tutorial/add) problem.
