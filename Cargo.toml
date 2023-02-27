@@ -1,0 +1,9 @@
+[workspace]
+members = [
+    # Problems
+    "problems/tutorial/add",
+    "problems/intro/combinations",
+    "problems/intro/conway",
+    "problems/intro/min-queue",
+]
+    

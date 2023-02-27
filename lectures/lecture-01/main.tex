@@ -1,0 +1,1446 @@
+\documentclass[aspectratio=1610,t]{beamer}
+
+\usepackage[english]{babel}
+\usepackage{hyperref}
+\usepackage{minted}
+\usepackage{alltt}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{xcolor}
+
+\usetheme{metropolis}
+\usemintedstyle{xcode}
+\definecolor{codebg}{RGB}{247, 247, 246}
+\setbeamercolor{background canvas}{bg=white}
+\hypersetup{colorlinks,linkcolor=,urlcolor=orange}
+
+\title{Lecture 1: Basics}
+\date{February 21, 2023}
+\author{Barinov Denis}
+\institute{barinov.diu@gmail.com}
+
+\begin{document}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}
+\maketitle
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Previous mistake}
+\begin{itemize}
+    \item Is really a pointer in compiled program.
+    \item Cannot be \texttt{NULL}.
+    \item Guaranties that the object is alive.
+    \item There are \textt{\&} and \textt{\&mut} references.
+\end{itemize}
+
+\begin{minted}{rust}
+    let mut x: i32 = 92;
+    let r: &mut i32 = &mut x;  // Reference created explicitly
+    *r += 1;                   // Explicit dereference
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Previous mistake}
+
+\begin{minted}{rust}
+  |
+4 |     r += 1;                   // Explicit dereference
+  |     -^^^^^
+  |     |
+  |     cannot use `+=` on type `&mut i32`
+  |
+help: `+=` can be used on `i32` if you dereference the left-hand side
+  |
+4 |     *r += 1;                   // Explicit dereference
+  |     +
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Structures}
+Structures are defined via \texttt{struct} keyword:
+
+\begin{minted}[fontsize=\small]{rust}
+    struct Example {
+        oper_count: usize,
+        data: Vec<i32>, // Note the trailing comma
+    }
+\end{minted}
+
+Rust \textbf{do not} give any guarantees about memory representation by default. Even these structures can be different in memory!
+
+\begin{minted}[fontsize=\small]{rust}
+    struct A {
+        x: Example,
+    }
+
+    struct B {
+        y: Example,
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Structures}
+Let's add new methods to \texttt{Example}:
+
+\begin{minted}[fontsize=\small]{rust}
+    impl Example {
+        // Associated
+        pub fn new() -> Self {
+            Self {
+                oper_count: 0,
+                data: Vec::new(),
+            }
+        }
+    
+        pub fn push(&mut self, x: i32) {
+            self.oper_count += 1;
+            self.data.push(x)
+        }
+
+        /* Next slide */
+    }    
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Structures}
+Let's add new methods to \texttt{Example}:
+
+\begin{minted}[fontsize=\small]{rust}
+    impl Example {
+        /* Previous slide */
+
+        pub fn oper_count(&self) -> usize {
+            self.oper_count
+        }
+    
+        pub fn eat_self(self) {
+            println!("later on lecture :)")
+        }
+    }
+\end{minted}
+
+Note: you can have multiple \texttt{impl} blocks.
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Structures}
+Initialize a structure and use it:
+
+\begin{minted}{rust}
+    let mut x = Example {
+        oper_count: 0,
+        data: Vec::new(),
+    };
+    let y = Example::new();
+    x.push(10);
+    assert_eq!(x.oper_count(), 1);
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Simple example of generics}
+What about being \textit{generic} over arguments?
+
+\begin{minted}{rust}
+    struct Example<T> {
+        oper_count: usize,
+        data: Vec<T>,
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Simple example of generics}
+What about being \textit{generic} over arguments?
+
+\begin{minted}[fontsize=\small]{rust}
+    impl<T> Example<T> {
+        pub fn new() -> Self {
+            Self {
+                oper_count: 0,
+                data: Vec::new(),
+            }
+        }
+
+        pub fn push(&mut self, x: T) {
+            self.oper_count += 1;
+            self.data.push(x)
+        }
+
+        /* The rest is the same */
+    } 
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Simple example of generics}
+Initialize a structure and use it:
+
+\begin{minted}[fontsize=\small]{rust}
+    let mut x = Example<i32> {
+        oper_count: 0,
+        data: Vec::new(),
+    };
+    let y = Example::<i32>::new(); // ::<> called 'turbofish'
+    let z: Example<i32> = Example {
+        oper_count: 0,
+        data: Vec::new(),
+    };
+    x.push(10);
+    assert_eq!(x.oper_count(), 1);
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Turbofish}
+Minimal C\texttt{++} code:
+\begin{minted}{cpp}
+template <int N>
+class Terror {};
+
+int main() {
+    Clown<3> x;
+}
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Turbofish}
+\begin{minted}{cpp}
+template <int N>
+class Terror {};
+
+int main() {
+    Clown<3> x;
+}
+\end{minted}
+
+\begin{minted}{bash}
+<source>: In function 'int main()':
+<source>:5:5: error: 'Clown' was not declared in this scope
+    5 |     Clown<3> x;
+      |     ^~~~~
+<source>:5:14: error: 'x' was not declared in this scope
+    5 |     Clown<3> x;
+      |              ^
+Compiler returned: 1
+\end{minted}
+
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\href{https://www.reddit.com/r/rust/comments/v4rir6/turbofish_why/}{Turbofish}}
+\begin{minted}{cpp}
+template <int N>
+class Terror {};
+
+int main() {
+    // Clown<3> x;
+    (Clown < 3) > x;
+}
+\end{minted}
+
+\begin{minted}{bash}
+<source>: In function 'int main()':
+<source>:5:5: error: 'Clown' was not declared in this scope
+    5 |     Clown<3> x;
+      |     ^~~~~
+<source>:5:14: error: 'x' was not declared in this scope
+    5 |     Clown<3> x;
+      |              ^
+Compiler returned: 1
+\end{minted}
+
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Conditions and loops: \texttt{if}, \texttt{while}, \texttt{for}, \texttt{loop}}
+\begin{minted}{rust}
+    let mut x = 2;
+    if x == 2 { // No braces in Rust
+        x += 2;
+    }
+    while x > 0 { // No braces too
+        x -= 1;
+        println!("{x}");
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Conditions and loops: \texttt{if}, \texttt{while}, \texttt{for}, \texttt{loop}}
+\begin{minted}{rust}
+    loop { // Just loop until 'return', 'break' or never return.
+        println!("I'm infinite!");
+        x += 1;
+        if x == 10 {
+            println!("I lied...");
+            break
+        }
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Conditions and loops: \texttt{if}, \texttt{while}, \texttt{for}, \texttt{loop}}
+This works in any other scope, for instance in \texttt{if}'s:
+
+\begin{minted}{rust}
+    let y = 42;
+    let x = if y < 42 {
+        345
+    } else {
+        y + 534
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Conditions and loops: \texttt{if}, \texttt{while}, \texttt{for}, \texttt{loop}}
+In Rust, we can break with a value from \texttt{while} and \texttt{loop}!
+
+\begin{minted}{rust}
+    let mut counter = 0;
+    let result = loop {
+        counter += 1;
+        if counter == 10 {
+            break counter * 2;
+        }
+    };
+    assert_eq!(result, 20);
+\end{minted}
+
+Default \texttt{break} is just \texttt{break ()}.
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{Inhabited type \texttt{!}}}
+Rust always requires to return something correct.
+
+\begin{minted}{rust}
+    // error: mismatched types
+    // expected `i32`, found `()`
+    fn func() -> i32 {}
+\end{minted}
+
+How does this code work?
+
+\begin{minted}{rust}
+    fn func() -> i32 {
+        unimplemented!("not ready yet")
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{Inhabited type \texttt{!}}}
+Rust always requires to return something correct.
+
+\begin{minted}{rust}
+    // error: mismatched types
+    // expected `i32`, found `()`
+    fn func() -> i32 {}
+\end{minted}
+
+How does this code work?
+
+\begin{minted}{rust}
+    fn func() -> i32 {
+        unimplemented!("not ready yet")
+    }
+\end{minted}
+
+\textbf{Return type that is never constructed}: \texttt{!}.
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{Inhabited type \texttt{!}}}
+\textbf{Return type that is never constructed}: \texttt{!}
+
+Same as:
+
+\begin{minted}{rust}
+    enum Test {} // empty, could not be constructed
+\end{minted}
+
+\texttt{loop} without any \texttt{break} returns \texttt{!}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Conditions and loops: \texttt{if}, \texttt{while}, \texttt{for}, \texttt{loop}}
+Or break on outer \texttt{while}, \texttt{for} or \texttt{loop}:
+
+\begin{minted}[fontsize=\small]{rust}
+    'outer: loop {
+        println!("Entered the outer loop");
+        'inner: for _ in 0..10 {
+            println!("Entered the inner loop");
+
+            // This would break only the inner loop
+            // break;
+
+            // This breaks the outer loop
+            break 'outer;
+        }
+        println!("This point will never be reached");
+    }
+    println!("Exited the outer loop");
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Conditions and loops: \texttt{if}, \texttt{while}, \texttt{for}, \texttt{loop}}
+Time for \texttt{for} loops!
+
+\begin{minted}{rust}
+    for i in 0..10 {
+        println!("{i}");
+    }
+    for i in 0..=10 {
+        println!("{i}");
+    }
+    for i in [1, 2, 3, 4] {
+        println!("{i}");
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Conditions and loops: \texttt{if}, \texttt{while}, \texttt{for}, \texttt{loop}}
+Time for \texttt{for} loops!
+
+\begin{minted}{rust}
+    let vec = vec![1, 2, 3, 4];
+    for i in &vec { // By reference
+        println!("{i}");
+    }
+    for i in vec { // Consumes vec; will be discussed later
+        println!("{i}");
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Enumerations}
+Enumerations are one of the best features in Rust :)
+
+\begin{minted}{rust}
+    enum MyEnum {
+        First,
+        Second,
+        Third, // Once again: trailing comma
+    }
+    enum OneMoreEnum<T> {
+        Ein(i32),
+        Zwei(u64, Example<T>),
+    }
+
+    let x = MyEnum::First;
+    let y: MyEnum = MyEnum::First;
+    let z = OneMoreEnum::Zwei(42, Example::<usize>::new());
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Enumerations}
+You can create custom functions for \texttt{enum}:
+
+\begin{minted}{rust}
+    enum MyEnum {
+        First,
+        Second,
+        Third, // Once again: trailing comma
+    }
+
+    impl MyEnum {
+        // ...
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Enumerations: Option and Result}
+In Rust, there's two important enums in \texttt{std}, used for error handling:
+
+\begin{minted}{rust}
+    enum Option<T> { 
+        Some(T),
+        None,
+    }
+
+    enum Result<T, E> {
+        Ok(T),
+        Err(E),
+    }
+\end{minted}
+
+We will discuss them a bit later
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Match}
+\texttt{match} is one of things that will help you to work with \texttt{enum}.
+
+\begin{minted}{rust}
+    let x = MyEnum::First;
+    match x {
+        MyEnum::First => println!("First"),
+        MyEnum::Second => {
+            for i in 0..5 { println!("{i}"); }
+            println!("Second");
+        },
+        _ => println!("Matched something!"),
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{The \texttt{\_} symbol}
+\begin{itemize}
+    \item \texttt{\_} matches everything in \texttt{match} (called wildcard).
+    \item Used for inference sometimes:
+    \begin{minted}{rust}
+    // Rust does not know here to what type
+    // you want to collect
+    let mut vec: Vec<_> = (0..10).collect();
+    vec.push(42u64);
+    \end{minted}
+    \item And to make a variable unused:
+    \begin{minted}{rust}
+    let _x = 10;
+    // No usage of _x, no warnings!
+    \end{minted}
+\end{itemize}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Match}
+\texttt{match} can match multiple objects at a time:
+
+\begin{minted}{rust}
+    let x = OneMoreEnum::<i32>::Ein(2);
+    let y = MyEnum::First;
+    match (x, y) {
+        (OneMoreEnum::Ein(a), MyEnum::First) => {
+            println!("Ein! - {a}");
+        },
+        // Destructuring
+        (OneMoreEnum::Zwei(a, _), _) => println!("Zwei! - {a}"),
+        _ => println!("oooof!"),
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Match}
+There's feature to match different values with same code:
+
+\begin{minted}{rust}
+    let number = 13;
+    match number {
+        1 => println!("One!"),
+        2 | 3 | 5 | 7 | 11 => println!("This is a prime"),
+        13..=19 => println!("A teen"),
+        _ => println!("Ain't special"),
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Match}
+And we can apply some additional conditions called guards:
+
+\begin{minted}{rust}
+    let pair = (2, -2);
+    println!("Tell me about {:?}", pair);
+    match pair {
+        (x, y) if x == y => println!("These are twins"),
+        // The ^ `if condition` part is a guard
+        (x, y) if x + y == 0 => println!("Antimatter, kaboom!"),
+        (x, _) if x % 2 == 1 => println!("The first one is odd"),
+        _ => println!("No correlation..."),
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Match}
+Match is an expression too:
+
+\begin{minted}{rust}
+    let x = 13;
+    let res = match x {
+        13 if foo() => 0,
+        // You have to cover all of the possible cases
+        13 => 1,
+        _ => 2,
+    };
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Match}
+Ignoring the rest of the tuple:
+
+\begin{minted}[fontsize=\small]{rust}
+    let triple = (0, -2, 3);
+    println!("Tell me about {:?}", triple);
+    match triple {
+        (0, y, z) => {
+            println!("First is `0`, `y` is {y}, and `z` is {z}")
+        },
+        // `..` can be used to ignore the rest of the tuple
+        (1, ..) => {
+            println!("First is `1` and the rest doesn't matter")
+        },
+        _ => {
+            println!("It doesn't matter what they are")
+        },
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Match}
+Let's define a struct:
+
+\begin{minted}[fontsize=\small]{rust}
+    struct Foo {
+        x: (u32, u32),
+        y: u32,
+    }
+
+    let foo = Foo { x: (1, 2), y: 3 };
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Match}
+Destructuring the struct:
+
+\begin{minted}{rust}
+    match foo {
+        Foo { x: (1, b), y } => {
+            println!("First of x is 1, b = {},  y = {} ", b, y);
+        },
+        Foo { y: 2, x: i } => {
+            println!("y is 2, i = {:?}", i);
+        },
+        Foo { y, .. } => { // ignoring some variables:
+            println!("y = {}, we don't care about x", y)
+        },
+        // Foo { y } => println!("y = {}", y),
+        // error: pattern does not mention field `x`
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Match}
+Binding values to names:
+
+\begin{minted}{rust}
+    match age() {
+        0 => println!("I haven't celebrated my birthday yet"),
+        n @ 1..=12 => println!("I'm a child of age {n}"),
+        n @ 13..=19 => println!("I'm a teen of age {n}"),
+        n => println!("I'm an old person of age {n}"),
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Match}
+Binding values to names + arrays:
+
+\begin{minted}{rust}
+    let s = [1, 2, 3, 4];
+    let mut t = &s[..]; // or s.as_slice()
+    loop {
+        match t {
+            [head, tail @ ..] => {
+                println!("{head}");
+                t = &tail;
+            }
+            _ => break,
+        }  
+    } // outputs 1\n2\n\3\n4\n
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{if let}}
+Sometimes we need only one enumeration variant to do something. Can we write it in a better way?
+
+\begin{minted}{rust}
+    let optional = Some(7);
+    match optional {
+        Some(i) => {
+            println!("It's Some({i})");
+        },
+        _ => {},
+        // ^ Required because `match` is exhaustive
+    };
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{if let}}
+Sometimes we need only one enumeration variant to do something. Can we write it in a better way?
+
+\begin{minted}{rust}
+    let optional = Some(7);
+    if let Some(i) = optional {
+        println!("It's Some({i})");
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{while let}}
+Same with \texttt{while}:
+
+\begin{minted}{rust}
+    let mut optional = Some(0);
+    while let Some(i) = optional {
+        if i > 9 {
+            println!("Greater than 9, quit!");
+            optional = None;
+        } else {
+            println!("`i` is `{i}`. Try again.");
+            optional = Some(i + 1);
+        }
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Enumerations}
+Let's dive into details
+
+\begin{itemize}
+    \item To identify the variant, we store some \textit{bits} in fields of enum. These bits are called \textit{discriminant}
+    \item The count of bits is exactly as many as needed to keep the number of variants
+    \item These bits are stored in unused bits of enumeration in another field. (compiler optimizations!)
+\end{itemize}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Enumerations}
+
+\begin{minted}{rust}
+    enum Test {
+        First(bool),
+        Second,
+        Third,
+        Fourth,
+    }
+    assert_eq!(
+        std::mem::size_of::<Test>(), 1
+    );
+    assert_eq!(
+        std::mem::size_of::<Option<Box<i32>>>(), 8
+    );
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Vector}
+\begin{minted}{rust}
+    let mut xs = vec![1, 2, 3];
+    // To declare vector with same element and
+    // specific count of elements, write
+    // vec![42; 113];
+    xs.push(4);
+    assert_eq!(xs.len(), 4);
+    assert_eq!(xs[2], 3);
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Slices}
+We can create a slice to a vector or array. A slice is a contiguous sequence of elements in a collection.
+
+\begin{minted}{rust}
+    let a = [1, 2, 3, 4, 5];
+    let slice1 = &a[1..4];
+    let slice2 = &slice1[..2];
+    assert_eq!(slice1, &[2, 3, 4]);
+    assert_eq!(slice2, &[2, 3]);
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Panic!}
+In Rust, when we encounter an unrecoverable error, we \texttt{panic!}
+
+\begin{minted}{rust}
+    let x = 42;
+    if x == 42 {
+        panic!("The answer!")
+    }
+\end{minted}
+
+There are some useful macros that \texttt{panic!}
+
+\begin{itemize}
+    \item \texttt{unimplemented!}
+    \item \texttt{unreachable!}
+    \item \texttt{todo!}
+    \item \texttt{assert!}
+    \item \texttt{assert\_eq!}
+\end{itemize}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{println!}}
+The best tool for debugging, we all know. 
+
+\begin{minted}[fontsize=\small]{rust}
+    let x = 42;
+    println!("{x}");
+    println!("The value of x is {}, and it's cool!", x);
+    println!("{:04}", x); // 0042
+    println!("{value}", value=x + 1); // 43
+    let vec = vec![1, 2, 3];
+    println!("{vec:?}");   // [1, 2, 3]
+    println!("{:?}", vec); // [1, 2, 3]
+    let y = (100, 200);
+    println!("{:#?}", y);
+    // (
+    //     100,
+    //     200,
+    // )
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}
+\center\Huge\textbf{Borrow Checker}
+
+\includegraphics[height=6cm,keepaspectratio]{images/check-failed.jpeg}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{What's the problem, Rust?}
+\begin{minted}{rust}
+    let mut v = vec![1, 2, 3];
+    let x = &v[0];
+    v.push(4);
+    println!("{}", x);
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{What's the problem, Rust?}
+\begin{minted}{rust}
+    let mut v = vec![1, 2, 3];
+    let x = &v[0];
+    v.push(4);
+    println!("{}", x);
+\end{minted}
+
+\begin{minted}{bash}
+error[E0502]: cannot borrow `v` as mutable because it is also
+borrowed as immutable
+ --> src/main.rs:8:5
+  |
+7 |     let x = &v[0];
+  |              - immutable borrow occurs here
+8 |     v.push(4);
+  |     ^^^^^^^^^ mutable borrow occurs here
+9 |     println!("{}", x);
+  |                    - immutable borrow later used here
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{What's the problem, Rust?}
+\begin{minted}{rust}
+    fn sum(v: Vec<i32>) -> i32 {
+        let mut result = 0;
+        for i in v {
+            result += i;
+        }
+        result
+    }
+
+    fn main() {
+        let mut v = vec![1, 2, 3];
+        println!("first sum: {}", sum(v));
+        v.push(4);
+        println!("second sum: {}", sum(v))
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{What's the problem, Rust?}
+\begin{minted}{rust}
+error[E0382]: borrow of moved value: `v`
+  --> src/main.rs:12:5
+   |
+10 |     let mut v = vec![1, 2, 3];
+   |         ----- move occurs because `v` has type `Vec<i32>`,
+   |  which does not implement the `Copy` trait
+11 |     println!("first sum: {}", sum(v));
+   |                                   - value moved here
+12 |     v.push(4);
+   |     ^^^^^^^^^ value borrowed here after move
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Ownership rules}
+\begin{itemize}
+    \item Each value in Rust has a variable that's called it's \textit{owner}.
+    \item There can be only one owner at a time.
+    \item When the owner goes out of scope, the value will be dropped.
+\end{itemize}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Ownership rules}
+\begin{minted}{rust}
+    fn main() {
+        let s = vec![1, 4, 8, 8];
+        let u = s;
+        println!("{:?}", u);
+        println!("{:?}", s); // This won't compile!
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Ownership rules}
+\begin{minted}[fontsize=\small]{rust}
+    fn om_nom_nom(s: Vec<i32>) {
+        println!("I have consumed {s:?}");
+    }
+
+    fn main() {
+        let s = vec![1, 4, 8, 8];
+        om_nom_nom(s);
+        println!("{s:?}");
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Ownership rules}
+\begin{minted}[fontsize=\small]{rust}
+    fn om_nom_nom(s: Vec<i32>) {
+        println!("I have consumed {s:?}");
+    }
+
+    fn main() {
+        let s = vec![1, 4, 8, 8];
+        om_nom_nom(s);
+        println!("{s:?}");
+    }
+\end{minted}
+
+\begin{itemize}
+    \item Each "owner" has the responsibility to clean up after itself.
+    \item When you move \texttt{s} into \textit{om\_nom\_nom}, it becomes the owner of \texttt{s}, and it will free \texttt{s} when it’s no longer needed in that scope. \textit{Technically the \texttt{s} parameter in \textit{om\_nom\_nom} become the owner}.
+    \item That means you can no longer use it in \textit{main}!
+    \item In C\texttt{++}, we will create a copy!
+\end{itemize}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Ownership rules}
+Given what we just saw, how can the following be the valid syntax?
+
+\begin{minted}{rust}
+    fn om_nom_nom(n: u32) {
+        println!("{} is a very nice number", n);
+    }
+
+    fn main() {
+        let n: u32 = 42;
+        let m = n;
+        om_nom_nom(n);
+        om_nom_nom(m);
+        println!("{}", m + n);
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Ownership rules}
+\begin{itemize}
+    \item Say you have a group of lawyers that are reviewing and signing a contract over Google Docs (just pretend it's true :) )
+    \item What are some ground rules we'd need to set to avoid chaos?
+    \item If someone modifies the contract before everyone else reviews/signs it, that's fine.
+    \item But if someone modifies the contract while others are reviewing it, people might miss changes and think they're signing a contract that says something else.
+    \item We should allow a single person to modify, or everyone to read, but not both.
+\end{itemize}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Borrowing intuition}
+\begin{itemize}
+    \item I should be able to have as many "const" pointers to a piece of data that I like.
+    \item However, if I have a "non-const" pointer to a piece of data at the same time, this could invalidate what the other const pointers are viewing. (e.g., they can become dangling pointers...)
+    \item If I have at most one "non-const" pointer at any given time, this should be OK.
+\end{itemize}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Borrowing}
+\begin{itemize}
+    \item We can have multiple shared (immutable) references at once (with no mutable references) to a value.
+    \item We can have only one mutable reference at once. (no shared references to it)
+    \item This paradigm pops up a lot in systems programming, especially when you have "readers" and "writers". In fact, you've already studied it in the course of Theory and Practice of Concurrency.
+\end{itemize}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Borrowing}
+\begin{itemize}
+    \item The lifetime of a value starts when it's created and ends the \textit{last time it's used}
+    \item Rust doesn't let you have a reference to a value that lasts longer than the value's lifetime
+    \item Rust computes lifetimes at compile time using static analysis. (this is often an over-approximation!)
+    \item Rust calls the special "drop" function on a value once its lifetime ends. (this is essentially a destructor)
+\end{itemize}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Borrowing}
+\begin{minted}{rust}
+fn main() {
+    let mut x = 5;
+    let y = &mut x;
+    
+    println!("y = {y}");
+    x = 42; // ok
+    println!("x = {x}");
+}
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Borrowing}
+\begin{minted}{rust}
+fn main() {
+    let mut x = 5;
+    let y = &mut x;
+
+    x = 42; // not ok
+    println!("y = {y}");
+    println!("x = {x}");
+}
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Borrowing}
+\begin{minted}{rust}
+fn main() {
+    let x1 = 42;
+    let y1 = Box::new(84);
+    { // starts a new scope
+        let z = (x1, y1);
+        // z goes out of scope, and is dropped;
+        // it in turn drops the values from x1 and y1
+    }
+    // x1's value is Copy, so it was not moved into z
+    let x2 = x1;
+    
+    // y1's value is not Copy, so it was moved into z
+    // let y2 = y1;
+}
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{Option}\footnote{\href{https://doc.rust-lang.org/std/option/enum.Option.html}{\texttt{Option} documentation}} and \texttt{Result}\footnote{\href{https://doc.rust-lang.org/std/result/enum.Result.html}{\texttt{Result} documentation}}}
+Let's remember their definitions:
+
+\begin{minted}{rust}
+    enum Option<T> { 
+        Some(T),
+        None,
+    }
+
+    enum Result<T, E> {
+        Ok(T),
+        Err(E),
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{Option} API}
+Matching \texttt{Option}:
+
+\begin{minted}{rust}
+    let result = Some("string");
+    match result {
+        Some(s) => println!("String inside: {s}"),
+        None => println!("Ooops, no value"),
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{Option} API}
+Useful functions \texttt{.unwrap()} and \texttt{.expect()}:
+
+\begin{minted}{rust}
+    fn unwrap(self) -> T;
+    fn expect(self, msg: &str) -> T;
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{Option} API}
+Useful functions \texttt{.unwrap()} and \texttt{.expect()}:
+
+\begin{minted}[fontsize=\small]{rust}
+    let opt = Some(22022022);
+    assert!(opt.is_some());
+    assert!(!opt.is_none());
+    assert_eq!(opt.unwrap(), 22022022);
+    let x = opt.unwrap(); // Copy!
+
+    let newest_opt: Option<i32> = None;
+    // newest_opt.expect("I'll panic!");
+
+    let new_opt = Some(Vec::<i32>::new());
+    assert_eq!(new_opt.unwrap(), Vec::<i32>::new());
+    // error[E0382]: use of moved value: `new_opt`
+    // let x = new_opt.unwrap(); // Clone!
+\end{minted}
+\end{frame}
+ 
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{Option} API}
+We have a magic function: \begin{minted}[fontsize=\small]{rust}
+    fn as_ref(&self) -> Option<&T>; // &self is &Option<T>
+\end{minted}
+
+Let's solve a problem:
+
+\begin{minted}[fontsize=\small]{rust}
+    let new_opt = Some(Vec::<i32>::new());
+    assert_eq!(new_opt.unwrap(), Vec::<i32>::new());
+    // error[E0382]: use of moved value: `new_opt`
+    // let x = new_opt.unwrap(); // Clone!
+
+    let opt_ref = Some(Vec::<i32>::new());
+    assert_eq!(new_opt.as_ref().unwrap(), &Vec::<i32>::new());
+    let x = new_opt.unwrap(); // We used reference!
+    // There's also .as_mut() function
+\end{minted}
+
+That means if type implements \texttt{Copy}, \texttt{Option} also implements \texttt{Copy}.
+\end{frame}
+ 
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{Option} API}
+We can map \texttt{Option<T>} to \texttt{Option<U>}:
+
+\begin{minted}[fontsize=\small]{rust}
+    fn map<U, F>(self, f: F) -> Option<U>;
+\end{minted}
+
+Example:
+
+\begin{minted}[fontsize=\small]{rust}
+    let maybe_some_string = Some(String::from("Hello, World!"));
+    // `Option::map` takes self *by value*,
+    // consuming `maybe_some_string`
+    let maybe_some_len = maybe_some_string.map(|s| s.len());
+    assert_eq!(maybe_some_len, Some(13));
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{Option} API}
+There's \textbf{A LOT} of different \texttt{Option} functions, enabling us to write beautiful functional code:
+
+\begin{minted}{rust}
+    fn map_or<U, F>(self, default: U, f: F) -> U;
+    fn map_or_else<U, D, F>(self, default: D, f: F) -> U;
+    fn unwrap_or(self, default: T) -> T;
+    fn unwrap_or_else<F>(self, f: F) -> T;
+    fn and<U>(self, optb: Option<U>) -> Option<U>;
+    fn and_then<U, F>(self, f: F) -> Option<U>;
+    fn or(self, optb: Option<T>) -> Option<T>;
+    fn or_else<F>(self, f: F) -> Option<T>;
+    fn xor(self, optb: Option<T>) -> Option<T>;
+    fn zip<U>(self, other: Option<U>) -> Option<(T, U)>;
+\end{minted}
+
+It's recommended for you to study the documentation and try to avoid \texttt{match} where possible.
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{Option} and ownership}
+There's two cool methods to control ownership of the value inside:
+
+\begin{minted}{rust}
+    fn take(&mut self) -> Option<T>;
+    fn replace(&mut self, value: T) -> Option<T>;
+    fn insert(&mut self, value: T) -> &mut T;
+\end{minted}
+
+The first one takes the value out of the \texttt{Option}, leaving a \texttt{None} in its place.
+
+The second one replaces the value inside with the given one, returning \texttt{Option} of the old value.
+
+The third one inserts a value into the \texttt{Option}, then returns a mutable reference to it.
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile,c]
+\frametitle{\texttt{Option} API and ownership: \texttt{take}}
+\begin{minted}[fontsize=\small]{rust}
+    struct Node<T> {
+        elem: T,
+        next: Option<Box<Node<T>>>,
+    }
+
+    pub struct List<T> {
+        head: Option<Box<Node<T>>>,
+    }
+
+    impl<T> List<T> {
+        pub fn pop(&mut self) -> Option<T> {
+            self.head.take().map(|node| {
+                self.head = node.next;
+                node.elem
+            })
+        }
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{Option} and optimizations}
+Rust guarantees to optimize the following types \texttt{T} such that \texttt{Option<T>} has the same size as \texttt{T}:
+
+\begin{itemize}
+    \item \texttt{Box<T>}
+    \item \texttt{\&T}
+    \item \texttt{\&mut T}
+    \item \texttt{fn}, \texttt{extern "C" fn}
+    \item \texttt{\#[repr(transparent)]} struct around one of the types in this list.
+    \item \texttt{num::NonZero*}
+    \item \texttt{ptr::NonNull<T>}
+\end{itemize}
+
+This is called the ``null pointer optimization'' or NPO.
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{Result}}
+Functions return Result whenever errors are expected and recoverable. In the \texttt{std} crate, \texttt{Result} is most prominently used for I/O.
+
+\textbf{Results must be used!} A common problem with using return values to indicate errors is that it is easy to ignore the return value, thus failing to handle the error. \texttt{Result} is annotated with the \texttt{\#[must\_use]} attribute, which will cause the compiler to issue a warning when a Result value is ignored.\footnote{\href{http://joeduffyblog.com/2016/02/07/the-error-model/}{The Error Model}}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{Result} API}
+We can \texttt{match} it as a regular \texttt{enum}:
+
+\begin{minted}{rust}
+    let version = Ok("1.1.14");
+    match version {
+        Ok(v) => println!("working with version: {:?}", v),
+        Err(e) => println!("error: version empty"),
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{Result} API}
+We have pretty the same functionality as in \texttt{Option}:
+
+\begin{minted}[fontsize=\small]{rust}
+    fn is_ok(&self) -> bool;
+    fn is_err(&self) -> bool;
+    fn unwrap(self) -> T;
+    fn unwrap_err(self) -> E;
+    fn expect_err(self, msg: &str) -> E;
+    fn expect(self, msg: &str) -> T;
+    fn as_ref(&self) -> Result<&T, &E>;
+    fn as_mut(&mut self) -> Result<&mut T, &mut E>;
+    fn map<U, F>(self, op: F) -> Result<U, E>;
+    fn map_err<F, O>(self, op: O) -> Result<T, F>;
+    // And so on
+\end{minted}
+
+It's recommended for you to study the documentation and try to avoid \texttt{match} where possible.
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}
+\frametitle{Questions?}
+\begin{center}
+\includegraphics[width=\textwidth,height=7cm,keepaspectratio]{images/crab.jpg}
+\end{center}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+
+\end{document}
