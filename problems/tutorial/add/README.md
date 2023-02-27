@@ -1,6 +1,6 @@
 # A + B
 
-First, make sure you're finished [setting up your workspace](../../../docs/SETUP.md).
+First, make sure you're finished [setting up your workspace](https://github.com/DBarinovv/rust_2023_homework/blob/master/docs/setup.md).
 
 ## Task
 
