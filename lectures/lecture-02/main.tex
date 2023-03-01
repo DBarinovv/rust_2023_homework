@@ -1,0 +1,995 @@
+\documentclass[aspectratio=1610,t]{beamer}
+
+\usepackage[english]{babel}
+\usepackage{hyperref}
+\usepackage{minted}
+\usepackage{alltt}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{xcolor}
+
+\usetheme{metropolis}
+\usemintedstyle{xcode}
+\definecolor{codebg}{RGB}{247, 247, 246}
+\setbeamercolor{background canvas}{bg=white}
+\hypersetup{colorlinks,linkcolor=,urlcolor=orange}
+
+\title{Lecture 2: Traits}
+\date{February 28, 2023}
+\author{Barinov Denis}
+\institute{barinov.diu@gmail.com}
+
+\begin{document}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}
+\maketitle
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Operator \texttt{?}}
+Consider the following structure:
+\begin{minted}[fontsize=\small]{rust}
+    struct Info {
+        name: String,
+        age: i32,
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile,c]
+\frametitle{Operator \texttt{?}}
+\begin{minted}[fontsize=\small]{rust}
+fn write_info(info: &Info) -> io::Result<()> {
+    let mut file = match File::create("my_best_friends.txt") {
+        Err(e) => return Err(e),
+        Ok(f) => f,
+    };
+    if let Err(e) = file
+        .write_all(format!("name: {}\n", info.name)
+        .as_bytes()) {
+        return Err(e)
+    }
+    if let Err(e) = file
+        .write_all(format!("age: {}\n", info.age)
+        .as_bytes()) {
+        return Err(e)
+    }
+    Ok(())
+}
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Operator \texttt{?}}
+We can use the \texttt{?} operator to make the code smaller!
+
+\begin{minted}[fontsize=\small]{rust}
+fn write_info(info: &Info) -> io::Result<()> {
+    let mut file = File::create("my_best_friends.txt")?;
+    file.write_all(format!("name: {}\n", info.name).as_bytes())?;
+    file.write_all(format!("age: {}\n", info.age).as_bytes())?;
+    Ok(())
+}
+\end{minted}
+
+Beautiful, isn't it?
+
+We can use it for \texttt{Option} too!
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{In this lecture}
+\begin{itemize}
+    \item Traits
+    \item Exotically Sized Types
+    \item Standard library traits
+\end{itemize}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[c]
+\centering\Huge\textbf{Traits}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Traits}
+
+\center\includegraphics[height=6cm,keepaspectratio]{images/it's_time.jpg}
+
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Traits}
+In Rust, a trait is \textit{similar to} an interface in other languages. It's the way how we can define \textit{shared behavior} (i.e similarities between objects).
+
+\begin{minted}[fontsize=\small]{rust}
+    pub trait Animal {
+        // No 'pub' keyword
+        fn name(&self) -> String;
+        fn noise(&self) -> String;
+    }
+\end{minted}
+
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Traits}
+
+\begin{minted}[fontsize=\small]{rust}
+    pub trait Animal {
+        fn name(&self) -> String;
+        fn noise(&self) -> String;
+
+        // Traits can provide default method definitions
+        fn talk(&self) {
+            println!("{} says {}", self.name(), self.noise());
+        }
+    }
+\end{minted}
+
+Let's define some structures and implement this trait for them.
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Traits}
+\begin{minted}{rust}
+    pub struct Sheep {
+        name: String,
+    }
+
+    impl Animal for Sheep {
+        fn name(&self) -> String {
+            self.name.clone()
+        }
+
+        fn noise(&self) -> String {
+            "baaaaah!".to_string()
+        }
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Traits}
+Usage example:
+
+\begin{minted}{rust}
+    let sheep = Sheep {
+        name: "Dolly".to_string(),
+    };
+    assert_eq!(sheep.name(), "Dolly");
+    sheep.talk();  // prints 'Dolly says baaaaah!'
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Traits}
+\begin{minted}[fontsize=\small]{rust}
+    pub struct Dog {
+        name: String,
+    }
+
+    impl Animal for Dog {
+        fn name(&self) -> String { self.name.clone() }
+
+        fn noise(&self) -> String {
+            "ruff!".to_string()
+        }
+
+        // Default trait methods can be overridden.
+        fn talk(&self) {
+            println!("Ruff! Don't call me doggo");
+        }
+    }
+\end{minted}
+\end{frame}
+
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Traits: \texttt{where} keyword}
+And here we'll have some troubles:
+
+\begin{minted}[fontsize=\small]{rust}
+    pub trait Animal {
+        fn name(&self) -> String;
+        fn noise(&self) -> String;
+
+        fn talk(&self) {
+            // Note: this clones &Self, not Self!
+            // let cloned = self.clone();
+
+            let cloned = (*self).clone();
+            println!("{} says {}", self.name(), self.noise());
+        }
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Traits: \texttt{where} keyword}
+And here we'll have some troubles:
+
+\begin{minted}[fontsize=\small]{rust}
+    pub trait Animal {
+        fn name(&self) -> String;
+        fn noise(&self) -> String;
+
+        fn talk(&self) {
+            // error: no method named `clone` found for
+            // type parameter `Self` in the current scope
+            let cloned = (*self).clone();
+            println!("{} says {}", self.name(), self.noise());
+        }
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Traits: \texttt{where} keyword}
+To add bounds to the type, use \texttt{where} keyword.
+
+\begin{minted}[fontsize=\small]{rust}
+    pub trait Animal
+    where
+        Self: Clone
+    {
+        fn name(&self) -> String;
+        fn noise(&self) -> String;
+
+        fn talk(&self) {
+            // Compiles just fine!
+            // Note: this clones Self, not &Self!
+            let cloned = self.clone();
+            println!("{} says {}", cloned.name(), cloned.noise());
+        }
+    }
+\end{minted}
+
+By default, Rust doesn't expect anything* from types! You should provide bounds.
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Traits: \texttt{where} keyword}
+If we'll try to compile \texttt{Sheep} and \texttt{Dog} types, we'll see errors from the compiler:
+
+\begin{minted}[fontsize=\small]{rust}
+error[E0277]: the trait bound `Sheep: Clone` is not satisfied
+  --> src/main.rs:22:6
+   |
+22 | impl Animal for Sheep {
+   |      ^^^^^^ the trait `Clone` is not implemented for `Sheep`
+   |
+note: required by a bound in `Animal`
+  --> src/main.rs:3:11
+   |
+1  | pub trait Animal
+   |           ------ required by a bound-in this
+2  | where
+3  |     Self: Clone
+   |           ^^^^^ required by this bound in `Animal`
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Traits: \texttt{where} keyword}
+You can also write trait bounds in generics:
+
+\begin{minted}[fontsize=\small]{rust}
+    trait Strange1<T: Clone + Iterator> 
+    where  // You're not able to do this without 'where'!
+        T::Item: Clone,
+    {
+        fn smth(x: T);
+    }
+
+    trait Strange2<T> 
+    where
+        T: Clone + Iterator,
+        T::Item: Clone,
+    {
+        fn smth(x: T);
+    }
+\end{minted}
+
+Note that you can add trait bounds only to generics with \texttt{where}!
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Supertraits}
+Rust doesn't have ``inheritance'', but you can define a trait as being a superset of another trait:
+
+\begin{minted}{rust}
+    trait Shape { fn area(&self) -> f64; }
+    trait Circle : Shape { fn radius(&self) -> f64; }
+\end{minted}
+
+Same as: 
+
+\begin{minted}{rust}
+    trait Shape { fn area(&self) -> f64; }
+    trait Circle where Self: Shape { fn radius(&self) -> f64; }
+\end{minted}
+
+
+
+It's an example of declaring Shape to be a supertrait of Circle.
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Supertraits}
+We can use methods from another trait:
+
+\begin{minted}{rust}
+    trait Shape { fn area(&self) -> f64; }
+
+    trait Circle: Shape {
+        fn radius(&self) -> f64 {
+            (self.area() /std::f64::consts::PI).sqrt()
+        }
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Supertraits}
+Usage:
+
+\begin{minted}{rust}
+    fn print_area_and_radius<C: Circle>(c: C) {
+        // Here we call the area method from
+        // the supertrait `Shape` of `Circle`.
+        println!("Area: {}", c.area());
+        println!("Radius: {}", c.radius());
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Fully Qualified Syntax}
+What if types have multiple methods named the same way, and Rust cannot understand what method to call?
+
+\begin{minted}[fontsize=\small]{rust}
+    struct Form {
+        username: String,
+        age: u8,
+    }
+
+    trait UsernameWidget {
+        fn get(&self) -> String;
+    }
+
+    trait AgeWidget {
+        fn get(&self) -> u8;
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Fully Qualified Syntax}
+\begin{minted}{rust}
+    impl UsernameWidget for Form {
+        fn get(&self) -> String {
+            self.username.clone()
+        }
+    }
+
+    impl AgeWidget for Form {
+        fn get(&self) -> u8 {
+            self.age
+        }
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Fully Qualified Syntax}
+Let's try to call \texttt{get}:
+
+\begin{minted}{rust}
+    let form = Form {
+        username: "rustacean".to_owned(),
+        age: 28,
+    };
+
+    println!("{}", form.get());
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Fully Qualified Syntax}
+\begin{minted}[fontsize=\footnotesize]{rust}
+error[E0034]: multiple applicable items in scope
+  --> src/main.rs:35:25
+   |
+35 |     println!("{}", form.get());
+   |                         ^^^ multiple `get` found
+   |
+note: candidate #1 is defined in an impl of the trait `UsernameWidget`
+for the type `Form`
+  --> src/main.rs:15:5
+   |
+15 |     fn get(&self) -> String {
+   |     ^^^^^^^^^^^^^^^^^^^^^^^
+note: candidate #2 is defined in an impl of the trait `AgeWidget`
+for the type `Form`
+  --> src/main.rs:21:5
+   |
+21 |     fn get(&self) -> u8 {
+   |     ^^^^^^^^^^^^^^^^^^^
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Fully Qualified Syntax}
+To solve the problem, one can call the method from a trait.
+
+\begin{minted}{rust}
+    let form = Form {
+        username: "rustacean".to_owned(),
+        age: 28,
+    };
+
+    // println!("{}", form.get());
+
+    let username = UsernameWidget::get(&form);  // From trait
+    assert_eq!("rustacean".to_owned(), username);
+    let age = <Form as AgeWidget>::get(&form);  // FQS
+    assert_eq!(28, age);
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Fully Qualified Syntax}
+
+\begin{minted}{rust}
+    let username = UsernameWidget::get(&form);
+    let age = <Form as AgeWidget>::get(&form);
+\end{minted}
+
+\visible<2->{
+    Actually, this one is called Fully Qualified Syntax (previously called universal function call syntax), and it's the most generic way of using methods.
+}
+
+\visible<3->{
+    The angle bracket can be omitted if the type expression is a simple identifier (as in the first line), but is required for anything more complex. The syntax \texttt{<T as Trait>} means that we require that \texttt{T} implements the trait \texttt{Trait}, and the method after the double colon refers to a method from that trait implementation.
+}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{impl} keyword}
+What if you need to accept any type that implements some trait? You can do the following:
+
+\begin{minted}{rust}
+    fn func<T: MyTrait + Clone>(input: T) {
+        // ...
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{impl} keyword}
+...Or use special syntax!
+
+One argument:
+\begin{minted}{rust}
+    fn func(input: impl MyTrait + Clone) {
+        // ...
+    }
+\end{minted}
+
+Two arguments:
+\begin{minted}{rust}
+    fn func(input: &impl MyTrait, output: &impl MyTrait) {
+        // ...
+    }
+\end{minted}
+
+One complex argument:
+\begin{minted}{rust}
+    fn func(input: &(impl MyTrait + Clone)) {
+        // ...
+    }
+\end{minted}
+
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{impl} keyword}
+\begin{minted}{rust}
+fn func<T: Display + Clone, U: Clone + Debug>(t: &T, u: &U) -> i32 { ... }
+\end{minted}
+Same as:
+\begin{minted}{rust}
+fn func<T, U>(t: &T, u: &U) -> i32
+where
+    T: Display + Clone,
+    U: Clone + Debug,
+{ ... }
+\end{minted}
+
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Multiple \texttt{impl}}
+What if we want to implement additional methods for a type depending on if it has an implementation of some trait?
+
+\begin{minted}[fontsize=\small]{rust}
+    pub enum Option<T> {
+        // ...
+    }
+
+    impl<T> Option<T> {
+        // ..
+    }
+
+    impl<T> Option<T>
+    where
+        T: Default
+    {
+        // ...
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{where} and selection}
+We can implement methods depending on whether the type has implementations of some traits.
+
+\begin{minted}[fontsize=\small]{rust}
+    pub enum Option<T> {
+        // ...
+    }
+
+    impl<T> Option<T> {
+        pub fn unwrap_or_default<T>(self) -> T
+        where
+            T: Default
+        {
+            // ...
+        }
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[c]
+\centering\Huge\textbf{Exotically Sized Types}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Exotically Sized Types}
+Most of the time, we expect types to have a statically known and positive size. This isn't always the case in Rust!
+
+Currently, types can be:
+
+\begin{itemize}
+    \item ``Regular'' (no formal name as far as lecturer knows)
+    \item Dynamically Sized Types, DST
+    \item Zero Sized Types, ZST
+    \item Empty Types
+\end{itemize}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Dynamically Sized Types}
+Dynamically Sized Type is a type which size is unknown at compile time.
+
+There are only two kinds of DST's:
+
+\begin{itemize}
+    \item Slices, either regular such as \texttt{[u8]} and \texttt{str}.
+    \item Trait objects, such as \texttt{dyn Trait}.
+\end{itemize}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Dynamically Sized Types}
+Dynamically Sized Type is a type which size is unknown at compile time.
+
+There are only two kinds of DST's:
+
+\begin{itemize}
+    \item Slices, either regular such as \texttt{[u8]} and \texttt{str}.
+    \item Trait objects, such as \texttt{dyn Trait}.
+\end{itemize}
+
+Such types \textbf{do not} implement \texttt{Sized} marker trait. \textbf{By default, Rust ``implements'' it for all types it can!}
+
+\begin{minted}{rust}
+    pub trait Sized {}
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Dynamically Sized Types: Slices}
+Remember: Rust has strict type system. For instance, types \texttt{T} and \texttt{\&T} are \textbf{different}.
+
+All that time we've written \texttt{\&str} instead of just \texttt{str} and that's for reason! Since the size of slice is not known at compile time, \texttt{str} is \textbf{unsized}, and it's a separate type.
+
+Basically, \texttt{\&str} is just a pointer to the beginning of the slice and its length, and it means the reference to the slice is sized.
+
+The same stands true for \texttt{[u8]}, \texttt{[i64]} and others.
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Dynamically Sized Types: Trait objects}
+Consider the following code:
+
+\begin{minted}{rust}
+    trait Hello {
+        fn hello(&self);
+    }
+
+    fn func(arr: &[Hello]) {
+        for i in arr {
+            i.hello();
+        }
+    }
+\end{minted}
+
+Will it compile?
+
+\visible<2->{
+    \textbf{No}, since the compiler doesn't know which size every object that implements \texttt{Hello} have and therefore cannot put them in the slice.
+}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Dynamically Sized Types: Trait objects}
+Consider the following code:
+
+\begin{minted}{rust}
+    fn func<T: Hello>(arr: &[T]) {
+        for i in arr {
+            i.hello();
+        }
+    }
+\end{minted}
+
+Will it compile?
+
+\visible<2->{
+    \textbf{Yes}, since compiler knows which size every object have. It will generate unique instance of function for every \texttt{T}.
+}
+
+\visible<3->{
+    But what if we need an array of objects that implement \texttt{Hello}?
+}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Dynamically Sized Types: Trait objects}
+\begin{minted}{rust}
+    fn func(arr: &[&dyn Hello]) {
+        for i in arr {
+            i.hello();
+        }
+    }
+\end{minted}
+
+\begin{itemize}[leftmargin=0pt]
+    \item<2-> Keyword \texttt{dyn} creates a \textbf{trait object}: some object that implements \texttt{Hello}.
+    \item<3-> \texttt{dyn Hello} is also an \textbf{unsized} type, since we don't know the size of the object that implements it.
+    \item<4-> \texttt{\&dyn Hello} consists of pointer to the structure and the pointer to the \textit{virtual table}, and it's sized. This reference is called \textbf{fat pointer}.
+\end{itemize}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Dynamically Sized Types: Trait objects}
+Trait objects can be stored at any pointers:
+
+\begin{minted}{rust}
+    impl Hello for &str {
+        fn hello(&self) {
+            println!("hello &str!");
+        }
+    }
+
+    let x = "hello world";
+    let r1: &dyn Hello = &x;
+    let r2: Box<dyn Hello> = Box::new(x.clone());
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Dynamically Sized Types: Trait objects}
+You cannot require more than one \textbf{non-auto} trait in trait objects, use supertraits instead.
+
+\begin{minted}{rust}
+    let x = "hello world";
+
+    let r: &dyn Hello + World = &x; // World is some regular user trait,
+                                    // it won't compile!
+    
+    trait HelloWorld: Hello + World {}
+    impl HelloWorld for &str {
+        // ...
+    }
+
+    // Will compile just fine
+    let r: &dyn HelloWorld = &x;
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Dynamically Sized Types: Trait objects}
+But you can require additional auto traits:
+
+\begin{minted}{rust}
+    trait X {
+        // ...
+    }
+
+    fn test(x: Box<dyn X + Send>) {
+        // ...
+    }
+\end{minted}
+Auto traits: Send, Sync, Unpin, UnwindSafe, and RefUnwindSafe.
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Trait objects: object safety}
+Ok, let's compile the following code:
+
+\begin{minted}{rust}
+    fn test(x: Box<dyn Clone + Send>) {
+        // ...
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Trait objects: object safety}
+\begin{minted}[fontsize=\small]{rust}
+error[E0038]: the trait `Clone` cannot be made into an object
+ --> src/main.rs:1:16
+  |
+1 | fn test(x: Box<dyn Clone + Send>) {
+  |                ^^^^^^^^^^^^^^^^ `Clone` cannot be made
+  |                                 into an object
+  |
+  = note: the trait cannot be made into an object because it
+  requires `Self: Sized`
+  = note: for a trait to be "object safe" it needs to allow
+  building a vtable to allow the call to be resolvable dynamically
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Trait objects: object safety}
+A trait is object safe if it has the following \href{https://doc.rust-lang.org/reference/items/traits.html#object-safety}{qualities}:
+
+\begin{itemize}
+    \item All supertraits must also be object safe
+    \item Sized must not be a supertrait. In other words, it must not require Self: Sized
+    \item It must not have any associated constants
+    \item It must not have any associated types with generics
+    \item About associated functions...
+\end{itemize}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{impl dyn}}
+We can implement methods for trait objects!
+
+\begin{minted}[fontsize=\small]{rust}
+    impl dyn Example {
+        fn is_dyn(&self) -> bool {
+            true
+        }
+    }
+
+    struct Test {}
+    impl Example for Test {}
+
+    let x = Test {};
+    let y: Box<dyn Example> = Box::new(Test {});
+    
+    x.is_dyn() // Won't compile
+    y.is_dyn();
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Trait objects vs Generics}
+\textbf{Question}: When to prefer Trait objects over generics and vice versa?
+
+\begin{itemize}
+    \item<2-> Trait objects produce less code and therefore prevent code bloating.
+    \item<3-> But require to read the vtable.
+    \item<4-> Generics are generally faster since they allow type-specific optimizations.
+    \item<5-> But when there are many types using generic function, code becomes bigger and CPU cannot fit it all into memory.
+    \item<6-> In this case, trait objects will be faster since single implementation would fit into cache line.
+    \item<7-> \textbf{Answer}: only profiling can really help you with this question. 
+\end{itemize}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[c]
+\centering\Huge\textbf{Standard library traits}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Just a bit information about macros}
+In the first lecture, we mentioned that macros are a way of code generation in Rust. We can also use or even write a macro that will generate an implementation of trait automatically - \texttt{derive}.
+
+Such type of macros is called \textbf{procedural macros}, whereas macros such as \texttt{println!} are \textbf{declarative}.
+
+We'll discuss this in more detail a little bit later.
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{Default}}
+Creates some default instance of \texttt{T}. Has a \texttt{\#[derive(Default)]} macro.
+
+\begin{minted}{rust}
+    pub trait Default {
+        fn default() -> Self;
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{Default}}
+Many types in Rust have a constructor. However, this is specific to the type; Rust cannot abstract over  ``everything that has a \texttt{.new()} method''.
+
+To allow this, the \texttt{Default} trait was conceived, which can be used with containers and other generic types (e.g. \texttt{Option::unwrap\_or\_default()}).
+
+\textbf{Question}: why this trait is not derived by default?
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{Clone}}
+A trait for the ability to explicitly duplicate an object. Has a \texttt{\#[derive(Clone)]} macro.
+
+\begin{minted}{rust}
+    pub trait Clone {
+        fn clone(&self) -> Self;
+
+        // Note the default implementation!
+        fn clone_from(&mut self, source: &Self) {
+            *self = source.clone()
+        }
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{Copy}}
+Types whose values can be duplicated simply by copying bits. Has a \texttt{\#[derive(Copy)]} macro.
+
+It's \textbf{marker trait} and exists only to show the compiler that the type is special and can be copied by just copying bits of type representation.
+
+\begin{minted}{rust}
+    pub trait Copy: Clone {}
+\end{minted}
+
+By default, variable bindings have \textbf{``move semantics''}. However, if a type implements \texttt{Copy}, it instead has \textbf{``copy semantics''}.
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}
+\frametitle{Summary}
+\begin{itemize}
+    \item Traits syntax
+    \item Dyn, impl keywords
+    \item Some standard traits
+\end{itemize}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}
+\frametitle{Questions?}
+\begin{center}
+\includegraphics[width=\textwidth,height=7cm,keepaspectratio]{images/crab.jpg}
+\end{center}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\end{document}
