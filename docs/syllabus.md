@@ -29,7 +29,9 @@ This document is the course syllabus. It contains the grading and lecture course
     - Option and Result
 
 02. Traits
-    - *Todo*
+    - Traits syntax
+    - `dyn`, `impl` keywords
+    - Some standard traits (`Copy`, `Clone`)
     
 03. *Todo*
 
