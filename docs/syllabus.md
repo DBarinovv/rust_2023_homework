@@ -28,6 +28,9 @@ This document is the course syllabus. It contains the grading and lecture course
     - Borrow checker
     - Option and Result
 
-02. *Todo*
+02. Traits
+    - *Todo*
+    
+03. *Todo*
 
 ### [Additional reading](reading-list.md)
