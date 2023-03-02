@@ -8,5 +8,10 @@ members = [
     "problems/std-collections/comm",
     "problems/std-collections/prefix",
     "problems/std-collections/lru-cache",
+    "problems/traits/trust",
+    "problems/traits/mpsc",
+    "problems/traits/flatmap",
+    "problems/traits/itertools",
+
 ]
     
