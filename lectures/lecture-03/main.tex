@@ -1,0 +1,1043 @@
+\documentclass[aspectratio=1610,t]{beamer}
+
+\usepackage[english]{babel}
+\usepackage{hyperref}
+\usepackage{minted}
+\usepackage{alltt}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{xcolor}
+
+\usetheme{metropolis}
+\usemintedstyle{xcode}
+\definecolor{codebg}{RGB}{247, 247, 246}
+\setbeamercolor{background canvas}{bg=white}
+\hypersetup{colorlinks,linkcolor=,urlcolor=orange}
+
+\title{Lecture 3: More traits}
+\date{March 2, 2023}
+\author{Barinov Denis}
+\institute{barinov.diu@gmail.com}
+
+\begin{document}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}
+\maketitle
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{PartialEq}}
+Trait for equality comparisons which are partial equivalence relations.\footnote{\href{https://en.wikipedia.org/wiki/Partial_equivalence_relation}{Partial equivalence relation on Wikipedia}} Has a \texttt{\#[derive(PartialEq)]} macro.
+
+\begin{minted}[fontsize=\small]{rust}
+    // Note the generic and default value!
+    pub trait PartialEq<Rhs = Self>
+    where
+        Rhs: ?Sized,
+    {
+        fn eq(&self, other: &Rhs) -> bool;
+
+        fn ne(&self, other: &Rhs) -> bool { ... }
+    }
+\end{minted}
+
+At the same time, this trait overloads operators \texttt{==} and \texttt{!=}.
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{PartialEq}
+Sometimes we want from trait to work differently depending on some input type. In the case of \texttt{PartialEq}, we want to allow comparisons between elements of different types.
+
+\begin{minted}{rust}
+    struct A {
+        x: i32,
+    }
+
+    // The same as #[derive(PartialEq)]
+    // Allows us to compare A's
+    impl PartialEq for A {
+        fn eq(&self, other: &A) -> bool {
+            self.x.eq(&other.x)
+        }
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{PartialEq}
+\begin{minted}{rust}
+    // Allows us to compare A's
+    #[derive(PartialEq)]
+    struct B {
+        x: i32,
+    }
+
+    // Allows us to compare B with A when A is on the right!
+    impl PartialEq<A> for B {
+        fn eq(&self, other: &A) -> bool {
+            // Same as 'self.x == other.x'
+            self.x.eq(&other.x)
+        }
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Traits and generics}
+Let's use defined structs and traits:
+
+\begin{minted}{rust}
+    let a1 = A { x: 42 };
+    let a2 = A { x: 43 };
+    assert!(a1 != a2);
+    let b = B { x: 42 };
+    assert!(b == a1);
+    assert!(a1 == b) // Won't compile: B is on the right!
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{PartialEq}}
+Your implementation of \texttt{PartialEq} must satisfy:
+
+\begin{itemize}
+    \item \texttt{a != b} if and only if \texttt{!(a == b)} (ensured by the default implementation).
+    \item Symmetry: if \texttt{A: PartialEq<B>} and \texttt{B: PartialEq<A>}, then \texttt{a == b} implies \texttt{b == a}.
+    \item Transitivity: if \texttt{A: PartialEq<B>} and \texttt{B: PartialEq<C>} and \texttt{A: PartialEq<C>}, then \texttt{a == b} and \texttt{b == c} implies \texttt{a == c}.
+\end{itemize}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{Eq}}
+Trait that tells compiler that our \texttt{PartialEq} trait implementaion is also reflexive. Has a \texttt{\#[derive(Eq)]} macro.
+
+\begin{minted}{rust}
+    pub trait Eq: PartialEq<Self> {}
+\end{minted}
+
+Reflexivity: \texttt{a == a}.
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{PartialEq}}
+\textbf{Question}: why do we need \texttt{PartialEq} and \texttt{Eq}? 
+
+\visible<2->{
+    Some types that do not have a full equivalence relation. For example, in floating point numbers \texttt{NaN != NaN}, so floating point types implement \texttt{PartialEq} but not \texttt{Eq}.
+}
+
+\visible<3->{
+    It's a good property since if data structure or algorithm requires equivalence relations to be fulfilled, Rust won't compile code since we have only \texttt{PartialEq} implemented.
+}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{Ordering}}
+A result of comparison of two values.
+
+\begin{minted}{rust}
+    pub enum Ordering {
+        Less,
+        Equal,
+        Greater,
+    }
+\end{minted}
+
+Has a little of functions:
+
+\begin{minted}{rust}
+    fn is_eq(self) -> bool;
+    fn is_ne(self) -> bool;
+    fn is_lt(self) -> bool;  // And some similar to this three
+    fn reverse(self) -> Ordering;
+    fn then(self, other: Ordering) -> Ordering;
+    fn then_with<F>(self, f: F) -> Ordering
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{PartialOrd}}
+Trait for values that can be compared for a sort-order. Has a \texttt{\#[derive(PartialOrd)]} macro.
+
+\begin{minted}{rust}
+    pub trait PartialOrd<Rhs = Self>: PartialEq<Rhs> 
+    where
+        Rhs: ?Sized, 
+    {
+        fn partial_cmp(&self, other: &Rhs) -> Option<Ordering>;
+
+        fn lt(&self, other: &Rhs) -> bool { ... }
+        fn le(&self, other: &Rhs) -> bool { ... }
+        fn gt(&self, other: &Rhs) -> bool { ... }
+        fn ge(&self, other: &Rhs) -> bool { ... }
+    }
+\end{minted}
+
+Also overloads operators \texttt{<}, \texttt{<=}, \texttt{>=} and \texttt{>}.
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{PartialOrd}}
+The methods of this trait must be consistent with each other and with those of PartialEq in the following sense:
+
+\begin{itemize}
+    \item \texttt{a == b} if and only if \texttt{partial\_cmp(a, b) == Some(Equal)}.
+    \item \texttt{a < b} if and only if \texttt{partial\_cmp(a, b) == Some(Less)} (ensured by the default implementation).
+    \item \texttt{a > b} if and only if \texttt{partial\_cmp(a, b) == Some(Greater)} (ensured by the default implementation).
+    \item \texttt{a <= b} if and only if \texttt{a < b || a == b} (ensured by the default implementation).
+    \item \texttt{a >= b} if and only if \texttt{a > b || a == b} (ensured by the default implementation).
+\end{itemize}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{Ord}}
+Trait for equality comparisons which are partial equivalence relations. Has a \texttt{\#[derive(Ord)]} macro.
+
+\begin{minted}{rust}
+    pub trait Ord: Eq + PartialOrd<Self> {
+        fn cmp(&self, other: &Self) -> Ordering;
+
+        fn max(self, other: Self) -> Self { ... }
+        fn min(self, other: Self) -> Self { ... }
+        fn clamp(self, min: Self, max: Self) -> Self { ... }
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{Ord}}
+Implementations must be consistent with the \texttt{PartialOrd} implementation, and ensure \texttt{max}, \texttt{min}, and \texttt{clamp} are consistent with \texttt{cmp}:
+
+\begin{itemize}
+    \item \texttt{partial\_cmp(a, b) == Some(cmp(a, b))}.
+    \item \texttt{max(a, b) == max\_by(a, b, cmp)} (ensured by the default implementation).
+    \item \texttt{min(a, b) == min\_by(a, b, cmp)} (ensured by the default implementation).
+    \item \texttt{a.clamp(min, max)} returns \texttt{max} if \texttt{self} is greater than \texttt{max}, and \texttt{min} if \texttt{self} is less than \texttt{min}. Otherwise this returns \texttt{self}. (ensured by the default implementation).
+\end{itemize}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{Reverse}}
+A helper struct for reverse ordering.
+
+\begin{minted}{rust}
+    pub struct Reverse<T>(pub T);
+\end{minted}
+
+Usage example:
+
+\begin{minted}{rust}
+    let mut v = vec![1, 2, 3, 4, 5, 6];
+    v.sort_by_key(|&num| (num > 3, Reverse(num)));
+    assert_eq!(v, vec![3, 2, 1, 6, 5, 4]);
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{New Type idiom}
+The newtype idiom gives compile-time guarantees that the right type of value is supplied to a program.
+
+\begin{minted}[fontsize=\small]{rust}
+    pub struct Years(i64);
+    pub struct Days(i64);
+    impl Years {
+        pub fn to_days(&self) -> Days {
+            Days(self.0 * 365)  // New Type is basically a tuple
+        }
+    }
+    impl Days {
+        pub fn to_years(&self) -> Years {
+            Years(self.0 / 365)
+        }
+    }
+    pub struct Example<T>(i32, i64, T);
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{BTreeMap}\footnote{\href{https://doc.rust-lang.org/std/collections/struct.BTreeMap.html}{\texttt{BTreeMap} documentation}} and \texttt{BTreeSet}\footnote{\href{https://doc.rust-lang.org/std/collections/struct.BTreeSet.html}{\texttt{BTreeSet} documentation}}}
+Rust includes collections sorted by key: map and set.
+
+\begin{itemize}
+    \item<2-> There's a B-tree data structure inside. Thus it is cache-local and works fast on modern CPUs. Asymptotics for most operations are $O(\log_BN)$.
+    \item<3-> \textbf{It is a logic error for a key to be modified in such a way that the key’s ordering relative to any other key changes while it is in the map}. The behavior resulting from such a logic error \textbf{is not specified} but \textbf{will not be undefined behavior}.
+\end{itemize}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{HashMap}\footnote{\href{https://doc.rust-lang.org/std/collections/struct.HashMap.html}{\texttt{HashMap} documentation}} and \texttt{HashSet}\footnote{\href{https://doc.rust-lang.org/std/collections/struct.HashSet.html}{\texttt{HashSet} documentation}}}
+What a language without hast table? Rust have two: \texttt{HashMap} and \texttt{HashSet}. Asymptotics are predictable.
+
+\begin{itemize}
+    \item<2-> This hash table is quite literally the fastest universal hash table in the world currently existing. It uses quadratic probing and SIMD lookup inside.
+    \item<3-> More specifically, it's Rust port called Hashbrown of Google SwissTable written in C\texttt{++}. If you're interested in the algorithm, you can watch CppCon talk.\footnote{\href{https://www.youtube.com/watch?v=ncHmEUmJZf4}{CppCon 2017: Matt Kulukundis ``Designing a Fast, Efficient, Cache-friendly Hash Table, Step by Step''}}
+    \item<4-> \textbf{It is a logic error for a key to be modified in such a way that the key's hash or its equality changes while it is in the map}. The behavior resulting from such a logic error \textbf{is not specified}, but \textbf{will not result in undefined behavior}.
+\end{itemize}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{Hasher}}
+In Rust, we have a generic trait to name any structure that can hash objects using bytes in its representation.
+
+\begin{minted}[fontsize=\small]{rust}
+    pub trait Hasher {
+        fn finish(&self) -> u64;
+        fn write(&mut self, bytes: &[u8]);
+
+        fn write_u8(&mut self, i: u8) { ... }
+        fn write_u16(&mut self, i: u16) { ... }
+        fn write_u32(&mut self, i: u32) { ... }
+        fn write_u64(&mut self, i: u64) { ... }
+        fn write_u128(&mut self, i: u128) { ... }
+        fn write_usize(&mut self, i: usize) { ... }
+        fn write_i8(&mut self, i: i8) { ... }
+        // ...
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{Hasher}}
+Example of usage of default \texttt{HashMap} hasher:
+
+\begin{minted}[fontsize=\small]{rust}
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::Hasher;
+
+    let mut hasher = DefaultHasher::new();
+
+    hasher.write_u32(1989);
+    hasher.write_u8(11);
+    hasher.write_u8(9);
+    // Note the 'b': it means this &str literal should
+    // be considered as &[u8]
+    hasher.write(b"Huh?");
+
+    // Hash is 238dcde3f17663a0!
+    println!("Hash is {:x}!", hasher.finish());
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{Hash}}
+Trait \texttt{Hash} means that the type is hashable. Has a \texttt{\#[derive(Hash)]} macro.
+
+\begin{minted}[fontsize=\small]{rust}
+    pub trait Hash {
+        fn hash<H>(&self, state: &mut H)
+        where
+            H: Hasher;
+
+        fn hash_slice<H>(data: &[Self], state: &mut H)
+        where
+            H: Hasher,
+        { ... }
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{Hasher}}
+Implementing \texttt{Hash} by hand:
+
+\begin{minted}{rust}
+    struct Person {
+        id: u32,
+        name: String,
+        phone: u64,
+    }
+
+    impl Hash for Person {
+        fn hash<H: Hasher>(&self, state: &mut H) {
+            self.id.hash(state);
+            self.phone.hash(state);
+        }
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{Hasher}}
+When implementing both Hash and Eq, it is important that the following property holds:
+
+\texttt{k1 == k2} \Longrightarrow \texttt{hash(k1) == hash(k2)}
+
+In other words, if two keys are equal, their hashes must also be equal. \texttt{HashMap} and \texttt{HashSet} both rely on this behavior.
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{Drop}}
+This trait allows running custom code within the destructor.\footnote{\href{https://doc.rust-lang.org/reference/destructors.html}{Destructors, The Rust Reference}}
+
+\begin{minted}{rust}
+    pub trait Drop {
+        fn drop(&mut self);
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{Drop}}
+Implementing \texttt{Drop} by hand:
+
+\begin{minted}{rust}
+    struct HasDrop;
+
+    impl Drop for HasDrop {
+        fn drop(&mut self) {
+            println!("Dropping HasDrop!");
+        }
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{Drop}}
+\begin{minted}{rust}
+    struct HasTwoDrops {
+        one: HasDrop,
+        two: HasDrop,
+    }
+
+    impl Drop for HasTwoDrops {
+        fn drop(&mut self) {
+            println!("Dropping HasTwoDrops!");
+        }
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{Drop}}
+\begin{minted}{rust}
+    let _x = HasTwoDrops { one: HasDrop, two: HasDrop };
+    println!("Running!");
+
+    // Running!
+    // Dropping HasTwoDrops!
+    // Dropping HasDrop!
+    // Dropping HasDrop!
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{ManuallyDrop}}
+A wrapper to inhibit compiler from automatically calling \texttt{T}’s destructor.
+
+\begin{minted}{rust}
+    pub struct ManuallyDrop<T> 
+    where
+        T: ?Sized, 
+    { /* fields omitted */ }
+\end{minted}
+
+Methods:
+\begin{minted}{rust}
+    fn new(value: T) -> ManuallyDrop<T>;
+    fn into_inner(slot: ManuallyDrop<T>) -> T;
+    unsafe fn take(slot: &mut ManuallyDrop<T>) -> T;
+    unsafe fn drop(slot: &mut ManuallyDrop<T>);
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{ManuallyDrop}}
+Example:
+\begin{minted}{rust}
+    use std::mem::ManuallyDrop;
+    let mut x = ManuallyDrop::new(String::from("Hello World!"));
+    x.truncate(5); // You can still safely operate on the value
+    assert_eq!(*x, "Hello");
+    // But `Drop` will not be run here
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{Add}}
+A trait to implement \texttt{+} operator for a type.
+
+\begin{minted}{rust}
+    pub trait Add<Rhs = Self> {
+        type Output;  // Note the associated type!
+
+        fn add(self, rhs: Rhs) -> Self::Output;
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{Add}}
+Usage example:
+
+\begin{minted}[fontsize=\small]{rust}
+    struct Point<T> {
+        x: T,
+        y: T,
+    }
+
+    impl<T: Add<Output = T>> Add for Point<T> {
+        type Output = Self;
+
+        fn add(self, other: Self) -> Self::Output {
+            Self {
+                x: self.x + other.x,
+                y: self.y + other.y,
+            }
+        }
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{AddAssign}}
+There's also ``assign'' variation which overloads operator \texttt{+=}.
+
+\begin{minted}{rust}
+    pub trait AddAssign<Rhs = Self> {
+        fn add_assign(&mut self, rhs: Rhs);
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{AddAssign}}
+Usage example:
+
+\begin{minted}[fontsize=\small]{rust}
+    struct Point {
+        x: i32,
+        y: i32,
+    }
+
+    impl AddAssign for Point {
+        fn add_assign(&mut self, other: Self) {
+            *self = Self {
+                x: self.x + other.x,
+                y: self.y + other.y,
+            };
+        }
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Other variations of operator overloading}
+Rust allows to overload a lot of operators by traits: \texttt{Add}, \texttt{Sub}, \texttt{Mul}, \texttt{Div}, \texttt{Rem}, \texttt{BitAnd}, \texttt{BitOr}, \texttt{BitXor}, \texttt{Shl}, \texttt{Shr}.
+
+They also have their -assign variations.
+
+In addition, you can overload \texttt{Not}, \texttt{Neg}. Of course, they are unary and don't have -assign variations.
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{Index}}
+Used for indexing operations (\texttt{container[index]}) in \textbf{immutable contexts}.
+
+\begin{minted}{rust}
+    pub trait Index<Idx> 
+    where
+        Idx: ?Sized, 
+    {
+        type Output: ?Sized;
+        fn index(&self, index: Idx) -> &Self::Output;
+    }
+\end{minted}
+
+\texttt{index} is allowed to panic when out of bounds.
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{Index}}
+Usage example:
+
+\begin{minted}{rust}
+    enum Nucleotide {
+        A,
+        C,
+        G,
+        T,
+    }
+    struct NucleotideCount {
+        a: usize,
+        c: usize,
+        g: usize,
+        t: usize,
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{Index}}
+Usage example:
+
+\begin{minted}[fontsize=\small]{rust}
+    impl Index<Nucleotide> for NucleotideCount {
+        type Output = usize;
+
+        fn index(&self, nucleotide: Nucleotide) -> &Self::Output {
+            match nucleotide {
+                Nucleotide::A => &self.a,
+                Nucleotide::C => &self.c,
+                Nucleotide::G => &self.g,
+                Nucleotide::T => &self.t,
+            }
+        }
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{IndexMut}}
+Used for indexing operations (\texttt{container[index]}) in \textbf{mutable contexts}.
+
+\begin{minted}[fontsize=\small]{rust}
+    pub trait IndexMut<Idx>: Index<Idx> 
+    where
+        Idx: ?Sized, 
+    {
+        fn index_mut(&mut self, index: Idx) -> &mut Self::Output;
+    }
+\end{minted}
+
+\texttt{index\_mut} is allowed to panic when out of bounds.
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{Index} and \texttt{IndexMut}}
+Let's find out when and how Rust chooses between \texttt{Index} and \texttt{IndexMut}.
+
+\begin{minted}[fontsize=\small]{rust}
+    struct Test {
+        x: usize
+    }
+
+    impl Index<usize> for Test {
+        type Output = usize;
+        fn index(&self, ind: usize) -> &Self::Output {
+            println!("Index");
+            &self.x
+        }
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{Index} and \texttt{IndexMut}}
+\begin{minted}[fontsize=\small]{rust}
+    impl IndexMut<usize> for Test {
+        fn index_mut(&mut self, ind: usize) -> &mut Self::Output {
+            println!("IndexMut");
+            &mut self.x
+        }
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{Index} and \texttt{IndexMut}}
+Let's use it:
+
+\begin{minted}[fontsize=\small]{rust}
+    let test1 = Test { x: 42 };
+    let mut test2 = Test { x: 42 };
+    test1[0];
+    test2[0] = 0;
+    let r = &test2.x;
+    % // test2[0] = 1; // This won't compile. Do you remember why?
+    test2[0];
+    println!("{r}");
+
+    // Index
+    // IndexMut
+    // Index
+    // 0
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{Read} and \texttt{Write}}
+To give object an ability to read or write, Rust provides traits - \texttt{Read} and \texttt{Write}.
+
+\begin{minted}[fontsize=\small]{rust}
+    pub trait Read {
+        fn read(&mut self, buf: &mut [u8]) -> Result<usize>;
+
+        fn read_to_end(&mut self, buf: &mut Vec<u8>)
+            -> Result<usize> { ... }
+        fn read_to_string(&mut self, buf: &mut String)
+            -> Result<usize> { ... }
+        fn read_exact(&mut self, buf: &mut [u8])
+            -> Result<()> { ... }
+        fn read_buf(&mut self, buf: &mut ReadBuf<'_>)
+            -> Result<()> { ... }
+        // ...
+    }
+\end{minted}
+
+We can read from \texttt{File}, \texttt{TcpStream}, \texttt{Stdin}, \texttt{\&[u8]} and more objects.
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{Read} and \texttt{Write}}
+To give object an ability to read or write, Rust provides traits - \texttt{Read} and \texttt{Write}.
+
+\begin{minted}[fontsize=\small]{rust}
+    pub trait Write {
+        fn write(&mut self, buf: &[u8]) -> Result<usize>;
+        fn flush(&mut self) -> Result<()>;
+    
+        fn write_all(&mut self, buf: &[u8]) -> Result<()> { ... }
+        // ...
+    }
+\end{minted}
+
+We can write to \texttt{File}, \texttt{TcpStream}, \texttt{Stdin}, \texttt{\&[u8]} and more objects.
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{BufRead}}
+We know that reading is more efficient when we use a buffer. To generalize that, \texttt{BufRead} trait exist.
+
+\begin{minted}[fontsize=\small]{rust}
+    pub trait BufRead: Read {
+        fn fill_buf(&mut self) -> Result<&[u8]>;
+        fn consume(&mut self, amt: usize);
+
+        fn has_data_left(&mut self) -> Result<bool> { ... }
+        fn read_until(&mut self, byte: u8, buf: &mut Vec<u8>)
+            -> Result<usize> { ... }
+        // ...
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{BufReader}}
+Rust has simple wrapper that implements \texttt{BufRead} over any \texttt{Read} type - \texttt{BufReader}.
+
+\begin{minted}{rust}
+    let f = File::open("log.txt")?;
+    let mut reader = BufReader::new(f);
+
+    // Why do we create string and pass is to the reader?
+    let mut line = String::new();
+    let len = reader.read_line(&mut line)?;
+    println!("First line is {} bytes long", len);
+    Ok(())
+\end{minted}
+
+Also, we can buffer write using \texttt{BufWrite}. Since there can be no additional methods for manipulating buffer when we are writing with buffer, there is no \texttt{BufWrite} trait.
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{Display} and \texttt{Debug}}
+Rust uses two traits to print object to the output: \texttt{Display} and \texttt{Debug}.
+
+\begin{minted}{rust}
+    let text = "hello\nworld ";
+    println!("{}", text);  // Display
+    println!("{:?}", text);  // Debug
+
+    // hello
+    // world
+    // "hello\nworld "
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{Display}}
+Format trait for an empty format, \texttt{\{\}}.
+
+\begin{minted}[fontsize=\small]{rust}
+    pub trait Display {
+        fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error>;
+    }
+\end{minted}
+
+\texttt{Formatter} is a struct that is used to format output. The documentation can be found \href{https://doc.rust-lang.org/std/fmt/struct.Formatter.html}{here}.
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{Debug}}
+Format trait for \texttt{?} format. Has a \texttt{\#[derive(Debug)]} macro.
+
+\begin{minted}[fontsize=\small]{rust}
+    pub trait Debug {
+        fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error>;
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{Display} and \texttt{Debug}: Design}
+How this traits are designed?
+
+\begin{minted}[fontsize=\small]{rust}
+    // Note: we can write to any object, but we are not generic!
+    pub trait Debug {
+        fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error>;
+    }
+\end{minted}
+
+\begin{itemize}
+    \item It's not good to return a \texttt{String} - unnecessary allocation when we print directly to file.
+    \item What if we want to print to some buffer on stack? (Remember \texttt{sprintf}?)
+    \item If our debug will be recursively called in subobjects - we'll create \texttt{N} additional allocations.
+\end{itemize}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{Display} and \texttt{Debug}: Design}
+\begin{minted}[fontsize=\small]{rust}
+    // Note: we can write to any object, but we are not generic!
+    pub trait Debug {
+        fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error>;
+    }
+
+    pub struct Formatter<'a> {
+        flags: u32,
+        fill: char,
+        align: rt::v1::Alignment,
+        width: Option<usize>,
+        precision: Option<usize>,
+
+        // Here's why we are not generic! Trait object!
+        buf: &'a mut (dyn Write + 'a),
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{ToString}}
+A trait for converting a value to a \texttt{String}.
+
+\begin{minted}[fontsize=\small]{rust}
+    pub trait ToString {
+        fn to_string(&self) -> String;
+    }
+\end{minted}
+
+This trait is \textbf{automatically implemented} for any type which implements the \texttt{Display} trait. As such, \texttt{ToString} shouldn’t be implemented directly: \texttt{Display} should be implemented instead, and you get the \texttt{ToString} implementation for free.
+
+\textbf{Question}: How it's done?
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{ToString} and \texttt{Display}}
+\begin{minted}[fontsize=\small]{rust}
+    impl<T: fmt::Display + ?Sized> ToString for T {
+        fn to_string(&self) -> String {
+            let mut buf = String::new();
+            let mut formatter = core::fmt::Formatter::new(&mut buf);
+            fmt::Display::fmt(self, &mut formatter)
+                .expect("a Display implementation returned \
+                         an error unexpectedly");
+            buf
+        }
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{Deref} and \texttt{DerefMut}}
+Rust can specialize operator \texttt{*}. It's used \textbf{only} for smart pointers. Rust chooses between \texttt{Deref} and \texttt{DerefMut} depending on the context.
+
+\begin{minted}[fontsize=\small]{rust}
+    pub trait Deref {
+        type Target: ?Sized;
+        fn deref(&self) -> &Self::Target;
+    }
+
+    pub trait DerefMut: Deref {
+        fn deref_mut(&mut self) -> &mut Self::Target;
+    }
+\end{minted}
+
+\textbf{This trait should never fail}. Failure during dereferencing can be extremely confusing when \texttt{Deref} is invoked implicitly.
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Dereference of \texttt{Deref}}
+If \texttt{T} implements \texttt{Deref<Target = U>}, and \texttt{x} is a value of type \texttt{T}, then:
+
+\begin{itemize}
+    \item In immutable contexts, \texttt{*x} (where \texttt{T} is neither a reference nor a raw pointer) is equivalent to \texttt{*Deref::deref(\&x)}.
+    \item Values of type \texttt{\&T} are coerced to values of type \texttt{\&U}.
+    \item \texttt{T} implicitly implements all the (immutable) methods of the type \texttt{U}.
+\end{itemize}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Dereference of \texttt{DerefMut}}
+If \texttt{T} implements \texttt{DerefMut<Target = U>}, and \texttt{x} is a value of type \texttt{T}, then:
+
+\begin{itemize}
+    \item In mutable contexts, \texttt{*x} (where \texttt{T} is neither a reference nor a raw pointer) is equivalent to \texttt{*DerefMut::deref\_mut(\&mut x)}.
+    \item Values of type \texttt{\&mut T} are coerced to values of type \texttt{\&mut U}.
+    \item \texttt{T} implicitly implements all the (mutable) methods of the type \texttt{U}.
+\end{itemize}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{The dot operator}
+The dot operator will perform a lot of magic to convert types. It will perform auto-referencing, auto-dereferencing, and coercion until types match.
+
+\begin{itemize}
+    \item<2-> First, the compiler checks if it can call \texttt{T::foo(value)} directly. This is called a ``by value'' method call.
+    \item<3-> If it can't call this function (for example, if the function has the wrong type or a trait isn't implemented for \texttt{Self}), then the compiler tries to add in an automatic reference. This means that the compiler tries \texttt{<\&T>::foo(value)} and \texttt{<\&mut T>::foo(value)}. This is called an ``autoref'' method call.
+    \item<4-> If none of these candidates worked, it dereferences \tetxtt{T} and tries again. This uses the \tetxtt{Deref} trait - if \tetxtt{T: Deref<Target = U>} then it tries again with type \tetxtt{U} instead of \tetxtt{T}. If it can't dereference \tetxtt{T}, it can also try \textbf{unsizing} \tetxtt{T}.
+\end{itemize}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{The dot operator}
+Let's review the example.
+
+\begin{minted}{rust}
+    let array: Rc<Box<[T; 3]>> = ...;
+    let first_entry = array[0];
+\end{minted}
+
+\begin{enumerate}
+    \item<2-> First, \texttt{array[0]} is really just syntax sugar for the \texttt{Index} trait - the compiler will convert \texttt{array[0]} into \texttt{array.index(0)}.
+    \item<3-> The compiler checks if \texttt{Rc<Box<[T; 3]>>} implements \texttt{Index}, but it does not, and neither do \texttt{\&Rc<Box<[T; 3]>>} or \texttt{\&mut Rc<Box<[T; 3]>>}.
+    \item<4-> The compiler dereferences the \texttt{Rc<Box<[T; 3]>>} into \texttt{Box<[T; 3]>} and tries again. \texttt{Box<[T; 3]>}, \texttt{\&Box<[T; 3]>}, and \texttt{\&mut Box<[T; 3]>} do not implement \texttt{Index}, so it dereferences again.
+    \item<5-> \texttt{[T; 3]} and its autorefs also do not implement \texttt{Index}. It can't dereference \texttt{[T; 3]}, so the compiler \textbf{unsizes} it, giving \texttt{[T]}. Finally, \texttt{[T]} implements \texttt{Index}, so it can now call the actual index function.
+\end{enumerate}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Conclusion}
+\begin{itemize}
+    \item More traits
+    \item Some std containers
+    \item Operators overloading
+\end{itemize}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}
+\frametitle{Questions?}
+\begin{center}
+\includegraphics[width=\textwidth,height=7cm,keepaspectratio]{images/crab.jpg}
+\end{center}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\end{document}

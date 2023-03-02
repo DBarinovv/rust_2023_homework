@@ -33,6 +33,9 @@ This document is the course syllabus. It contains the grading and lecture course
     - `dyn`, `impl` keywords
     - Some standard traits (`Copy`, `Clone`)
     
-03. *Todo*
+03. More Traits
+    - More traits
+    - Some std containers
+    - Operators overloading using traits
 
 ### [Additional reading](reading-list.md)
