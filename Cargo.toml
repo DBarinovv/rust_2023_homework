@@ -5,5 +5,8 @@ members = [
     "problems/intro/combinations",
     "problems/intro/conway",
     "problems/intro/min-queue",
+    "problems/std-collections/comm",
+    "problems/std-collections/prefix",
+    "problems/std-collections/lru-cache",
 ]
     
