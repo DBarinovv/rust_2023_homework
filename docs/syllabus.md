@@ -38,4 +38,9 @@ This document is the course syllabus. It contains the grading and lecture course
     - Some std containers
     - Operators overloading using traits
 
+04. Rewind
+    - `String` and `&str`
+    - `Box` and `Rc`
+    - `Dyn` keyword
+
 ### [Additional reading](reading-list.md)
