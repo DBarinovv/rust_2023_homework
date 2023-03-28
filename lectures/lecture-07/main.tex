@@ -1,0 +1,528 @@
+\documentclass[aspectratio=1610,t]{beamer}
+
+\usepackage[english]{babel}
+\usepackage{hyperref}
+\usepackage{minted}
+\usepackage{alltt}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+
+\usetheme{metropolis}
+\usemintedstyle{xcode}
+\definecolor{codebg}{RGB}{247, 247, 246}
+\setbeamercolor{background canvas}{bg=white}
+\hypersetup{colorlinks,linkcolor=,urlcolor=orange}
+
+\title{Lecture 7: Closures}
+\date{March 21, 2023}
+\author{Barinov Denis}
+\institute{barinov.diu@gmail.com}
+
+\begin{document}
+
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}
+\maketitle
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[c]
+\centering\Huge\textbf{Closures}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Closures}
+You've already seen closures in homeworks and lectures:
+
+\begin{minted}{rust}
+    let x = 4;
+    let equal_to_x = |z| z == x;
+    let y = 4;
+    assert!(equal_to_x(y));
+\end{minted}
+
+\textbf{Question}: What's the difference between the closures and the functions?
+
+\visible<2->{
+    A closure is an \textit{anonymous function} that can directly \textit{use variables from the scope} in which it is defined.
+}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Closures}
+Unlike functions, closures infer input and output types since it's more convenient most of the time.
+
+\begin{minted}[fontsize=\small]{rust}
+    let option = Some(2);
+
+    let x = 3;
+    // explicit types:
+    let new: Option<i32> = option.map(|val: i32| -> i32 {
+        val + x
+    });
+    println!("{:?}", new);  // Some(5)
+
+    let y = 10;
+    // inferred:
+    let new2 = option.map(|val| val * y);
+    println!("{:?}", new2);  // Some(20)
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Closures and traits}
+Let's try to duplicate \texttt{Option::map} functionality with handcrafted function.
+
+\begin{minted}[fontsize=\small]{rust}
+    fn map<X, Y>(option: Option<X>, transform: ...) -> Option<Y> {
+        match option {
+            Some(x) => Some(transform(x)),
+            None => None,
+        }
+    }
+\end{minted}
+
+We need to fill in the \texttt{...} with something that transforms an \texttt{X} into a \texttt{Y}. What it will be?
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Closures and traits}
+We want \texttt{transform} to be the callable object. In Rust, when we want to abstract over some property, we use traits!
+
+\begin{minted}[fontsize=\small]{rust}
+    fn map<X, Y, T>(option: Option<X>, transform: T) -> Option<Y>
+        where T: /* the trait */ { ... }
+\end{minted}
+
+Let's design it.
+
+\begin{itemize}
+    \item<2-> Idea: compiler generated structure that implements some trait.
+    \item<3-> Our trait will have only one function.
+    \item<4-> We'll use tuple as input type since we don't have variadics in Rust (and we don't actually need them, at least in this case).
+\end{itemize}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Closures and traits}
+\begin{minted}[fontsize=\small]{rust}
+    trait Transform<Input> {
+        type Output;
+        fn transform(/* self */, input: Input) -> Self::Output;
+    }
+\end{minted}
+
+\textbf{Question}: Do we need \texttt{self}, \texttt{\&mut self} or \texttt{\&self} here?
+
+\visible<2->{
+    Since the transformation should be able to incorporate arbitrary information beyond what is contained in \texttt{Input}. Without any \texttt{self} argument, the method would look like \texttt{fn transform(input: Input) -> Self::Output} and the operation could only depend on \texttt{Input} and global variables.
+}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Closures and traits}
+\textbf{Question}: What do we need exactly: \texttt{self}, \texttt{\&mut self} or \texttt{\&self}?
+
+\visible<2->{
+\begin{table}[]
+\begin{tabular}{|l|l|}
+\hline
+                    & \textbf{User}                                \\ \hline
+\texttt{self}       & Can only call method once                    \\ \hline
+\texttt{\&mut self} & Can call many times, only with unique access \\ \hline
+\texttt{\&self}     & Can call many times, with no restrictions    \\ \hline
+\end{tabular}
+\end{table}
+}
+
+\visible<3->{
+    We usually want to choose the highest row of the table that still allows the consumers to do what they need to do.
+}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Closures and traits}
+Let's start with \texttt{self}. In summary, our \texttt{map} and its trait look like:
+
+\begin{minted}[fontsize=\small]{rust}
+    trait Transform<Input> {
+        type Output;
+        fn transform(self, input: Input) -> Self::Output;
+    }
+
+    fn map<X, Y, T>(option: Option<X>, transform: T) -> Option<Y>
+        where T: Transform<X, Output = Y>
+    {
+        match option {
+            Some(x) => Some(transform.transform(x)),
+            None => None,
+        }
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile,c]
+\frametitle{\texttt{Fn}, \texttt{FnMut}, \texttt{FnOnce}}
+Rust uses \texttt{Fn}, \texttt{FnMut}, \texttt{FnOnce} traits to unify functions and closures, similar to what we've invented.
+
+\begin{minted}[fontsize=\small]{rust}
+    pub trait FnOnce<Args> {
+        type Output;
+        fn call_once(self, args: Args) -> Self::Output;
+    }
+
+    pub trait FnMut<Args>: FnOnce<Args> {
+        fn call_mut(&mut self, args: Args) -> Self::Output;
+    }
+
+    pub trait Fn<Args>: FnMut<Args> {
+        fn call(&self, args: Args) -> Self::Output;
+    }
+\end{minted}
+
+\visible<2->{
+    Look carefuly as \texttt{self}. Every \texttt{FnMut} closure can implement \texttt{FnOnce} exactly the same way! Same applies to \texttt{Fn} and \texttt{FnMut}.
+}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{Fn}, \texttt{FnMut}, \texttt{FnOnce}}
+The real \texttt{map} looks like this:
+
+\begin{minted}[fontsize=\small]{rust}
+    impl<T> Option<T> {
+        pub fn map<U, F>(self, f: F) -> Option<U>
+        where
+            F: FnOnce(T) -> U,
+        {
+            match self {
+                Some(x) => Some(f(x)),
+                None => None
+            }
+        }
+    }
+\end{minted}
+
+\texttt{FnOnce(T) -> U} is another name for our \texttt{Transform<X, Output = Y>} bound, and \texttt{f(x)} for \texttt{transform.transform(x)}.
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile,c]
+\frametitle{Returning and accepting closures}
+Since the closure is a compiler-generated type, it's \textbf{non-denotable}, i.e you cannot write its exact type.
+
+\begin{minted}{rust}
+    fn return_closure() -> impl Fn() {
+        || println!("hello world!")
+    }
+\end{minted}
+
+\texttt{Fn}, \texttt{FnMut}, \texttt{FnOnce} are traits, and we can benefit from trait objects here too!
+
+\begin{minted}{rust}
+    let c1 = || {
+        println!("calculating...");
+        42 * 2 - 22
+    };
+    let c2 = || 42;
+    let vec: Vec<&dyn Fn() -> i32> = vec![&c1, &c2];
+    for elem in vec { println!("{}", elem()); }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{Fn}, \texttt{FnMut}, \texttt{FnOnce}}
+Basically any funtions also implement these traits!
+
+\begin{minted}{rust}
+    fn cast(x: i32) -> i64 {
+        (x + 1) as i64
+    }
+
+    fn func(f: impl FnOnce(i32) -> i64) {
+        println!("f(42) = {}", f(42));
+    }
+
+    fn main() {
+        func(cast)
+    }
+\end{minted}
+
+So, like everything in Rust, operator \texttt{()} is defined by traits
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{\texttt{fn}}
+There's also \textit{function pointers} in Rust. It's not a trait, it's an actual \textit{type} that refers to the code, not data. Unlike closures, they cannot capture the environment.
+
+\begin{minted}[fontsize=\small]{rust}
+    fn add_one(x: usize) -> usize { x + 1 }
+
+    let ptr: fn(usize) -> usize = add_one;
+    assert_eq!(ptr(5), 6);
+
+    let clos: fn(usize) -> usize = |x| x + 5;
+    assert_eq!(clos(5), 10);
+
+    // error: mismatched types
+    // let y = 2;
+    // let clos: fn(usize) -> usize = |x| y + x + 5;
+    // assert_eq!(clos(5), 10);
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Closures: capturing}
+Let's find out how Rust closures decide how to capture the variables.
+
+\begin{minted}[fontsize=\small]{rust}
+    struct T { ... }
+
+    fn by_value(_: T) {}
+    fn by_mut(_: &mut T) {}
+    fn by_ref(_: &T) {}
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile,c]
+\frametitle{Closures: capturing}
+\begin{minted}[fontsize=\small]{rust}
+    let x: T = ...;
+    let mut y: T = ...;
+    let mut z: T = ...;
+
+    let closure = || {
+        by_ref(&x);
+        by_ref(&y);
+        by_ref(&z);
+
+        // Forces `y` and `z` to be at least
+        // captured by `&mut` reference
+        by_mut(&mut y);
+        by_mut(&mut z);
+
+        // Forces `z` to be captured by value
+        by_value(z);
+    };
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Closures: capturing}
+This is how closure environment will look like:
+
+\begin{minted}[fontsize=\small]{rust}
+    struct Environment<'x, 'y> {
+        x: &'x T,
+        y: &'y mut T,
+        z: T
+    }
+
+    /* impl of FnOnce for Environment */
+
+    let closure = Environment {
+        x: &x,
+        y: &mut y,
+        z: z,
+    };
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Closures: capturing}
+Since this closure implements \texttt{FnOnce}, it cannot be called twice:
+
+\begin{minted}{rust}
+    // Ok
+    closure();
+    // error: moved due to previous call
+    // closure();
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile,c]
+\frametitle{Closures: capturing}
+What if you need to move out a closure from the scope? In this case, you need to move all the variables even if it's enough to have a shared reference.
+
+\begin{minted}{rust}
+    // Returns a function that adds a fixed number
+    // to the argument. Reminds of Higher Order Functions
+    // from functional programming!
+    fn make_adder(x: i32) -> impl Fn(i32) -> i32 {
+        |y| x + y
+    }
+    fn main() {
+        let f = make_adder(3);
+        println!("{}", f(1));  
+        println!("{}", f(10));  
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Closures: capturing}
+\begin{minted}{rust}
+error[E0597]: `x` does not live long enough
+ --> src/main.rs:2:9
+  |
+2 |     |y| x + y
+  |     --- ^ borrowed value does not live long enough
+  |     |
+  |     value captured here
+3 | }
+  |  -
+  |  |
+  |  `x` dropped here while still borrowed
+  |  borrow later used here
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Closures: capturing}
+Let's use \texttt{move} keyword to tell Rust we need to capture by value:
+
+\begin{minted}{rust}
+    fn make_adder(x: i32) -> impl Fn(i32) -> i32 {
+        // Compiles just fine!
+        move |y| x + y
+    }
+
+    fn main() {
+        let f = make_adder(3);
+        println!("{}", f(1));  // 4
+        println!("{}", f(10));  // 13
+    }
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Closures: capturing}
+Going back to previous example, the closure with \texttt{move} keyword will capture all variables by value:
+
+\begin{minted}[fontsize=\small]{rust}
+    let closure = move || {
+        by_ref(&x);
+        by_ref(&y);
+        by_ref(&z);
+
+        // Forces `y` and `z` to be at least
+        // captured by `&mut` reference
+        by_mut(&mut y);
+        by_mut(&mut z);
+
+        // Forces `z` to be captured by value
+        by_value(z);
+    };
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Closures: capturing}
+\begin{minted}{rust}
+    struct Environment {
+        x: T,
+        y: T,
+        z: T,
+    }
+\end{minted}
+
+In Rust, there are no fine-grained capture lists like in C++11. \textit{But do we need it}? In practice, we don't (at least the lecturer doesn't know good examples).
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile,c]
+\frametitle{Closure type}
+Every closure have \textbf{distinct type}. This implies that in this example \texttt{id0}, \texttt{id1}, \texttt{id2} and \texttt{id3} have \textbf{different types}.
+
+\begin{minted}[fontsize=\small]{rust}
+    fn id0(x: u64) -> u64 { x }
+    fn id1(x: u64) -> u64 { x }
+    fn main() {
+        let id2 = || 1;
+        let id3 = || 1;
+    }
+\end{minted}
+
+And this code won't compile:
+
+\begin{minted}[fontsize=\small]{rust}
+    fn make_closure(n: u64) -> impl Fn() -> u64 {
+        move || n
+    }
+
+    vec![make_closure(1), make_closure(2)];
+    vec![(|| 1), (|| 1)];  // Error: mismatched types
+\end{minted}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}[fragile]
+\frametitle{Closures and optimizations}
+\begin{itemize}
+    \item<1-> We create a structure for the closure, do some moves... It must be expensive!
+    \item<2-> Actually, the compiler knows a lot about our code and optimizes it with ease. Most closure calls are inlined and in binary is the same as code without closure.
+    \item<3-> Zero cost abstraction!
+\end{itemize}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\begin{frame}
+\frametitle{Questions?}
+\begin{center}
+\includegraphics[width=\textwidth,height=7cm,keepaspectratio]{images/crab.jpg}
+\end{center}
+\end{frame}
+
+% ----------------------------------------------------------------- %
+
+\end{document}
